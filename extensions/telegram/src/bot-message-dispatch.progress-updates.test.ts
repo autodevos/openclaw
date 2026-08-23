@@ -720,6 +720,59 @@ describeTelegramDispatch("dispatchTelegramMessage progress-updates", () => {
     expect(lastPreview?.text).toContain("Checking recent context");
   });
 
+  it("supplies shouldDeliverCommentaryPayloads when progress commentary is enabled", async () => {
+    // Regression guard for #128038: without this callback the shared
+    // resolveTurnCommentaryProgressOwner defaults durable delivery to enabled,
+    // causing both the draft projection and the durable lane to render the same
+    // completed preamble — duplicating every commentary line in the progress draft.
+    setupDraftStreams({ answerMessageId: 2001 });
+    let capturedShouldDeliver: (() => boolean) | undefined;
+    dispatchReplyWithBufferedBlockDispatcher.mockImplementation(async ({ replyOptions }) => {
+      capturedShouldDeliver = replyOptions?.shouldDeliverCommentaryPayloads;
+      return { queuedFinal: false };
+    });
+
+    await dispatchWithContext({
+      context: createContext(),
+      streamMode: "progress",
+      telegramCfg: {
+        streaming: {
+          mode: "progress",
+          progress: { label: "Shelling", commentary: true },
+        },
+      },
+    });
+
+    // Callback must be present so the resolver can assign exactly one owner.
+    expect(capturedShouldDeliver).toBeDefined();
+    // Verbose progress is inactive at turn start — draft owns commentary.
+    expect(capturedShouldDeliver?.()).toBe(false);
+  });
+
+  it("omits shouldDeliverCommentaryPayloads when progress commentary is disabled", async () => {
+    // When commentary is off the durable-only path must stay unchanged (the
+    // existing CLI commentary path must not receive an owner callback).
+    setupDraftStreams({ answerMessageId: 2001 });
+    let capturedShouldDeliver: (() => boolean) | undefined;
+    dispatchReplyWithBufferedBlockDispatcher.mockImplementation(async ({ replyOptions }) => {
+      capturedShouldDeliver = replyOptions?.shouldDeliverCommentaryPayloads;
+      return { queuedFinal: false };
+    });
+
+    await dispatchWithContext({
+      context: createContext(),
+      streamMode: "progress",
+      telegramCfg: {
+        streaming: {
+          mode: "progress",
+          progress: { label: "Shelling" },
+        },
+      },
+    });
+
+    expect(capturedShouldDeliver).toBeUndefined();
+  });
+
   it("renders the Telegram preamble headline when commentary is disabled", async () => {
     const draftStream = createSequencedDraftStream(2001);
     createTelegramDraftStream.mockReturnValue(draftStream);
