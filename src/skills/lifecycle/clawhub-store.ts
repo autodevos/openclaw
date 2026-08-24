@@ -270,14 +270,19 @@ export async function readClawHubSkillsLockfile(
   workspaceDir: string,
 ): Promise<ClawHubSkillsLockfile> {
   for (const candidate of metadataPaths(workspaceDir, "lock.json")) {
-    try {
-      const raw = await tryReadJson<Partial<ClawHubSkillsLockfile>>(candidate);
-      if (raw?.version === 1 && raw.skills && typeof raw.skills === "object") {
-        return { version: 1, skills: raw.skills };
-      }
-    } catch {
-      // ignore
+    // readJsonIfExists returns null when the file is absent (ENOENT) and throws
+    // JsonFileReadError when the file exists but cannot be parsed — unlike tryReadJson,
+    // which returns null for both cases and silently treats a corrupt lockfile as empty.
+    const raw = await readJsonIfExists<Partial<ClawHubSkillsLockfile>>(candidate);
+    if (raw === null) {
+      continue; // file is absent at this candidate path
     }
+    if (raw.version === 1 && raw.skills && typeof raw.skills === "object") {
+      return { version: 1, skills: raw.skills };
+    }
+    throw new Error(
+      `ClawHub lockfile at ${candidate} is malformed: expected version 1 with skills object`,
+    );
   }
   return { version: 1, skills: {} };
 }
