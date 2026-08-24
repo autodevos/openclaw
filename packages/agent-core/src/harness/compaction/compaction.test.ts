@@ -947,6 +947,60 @@ describe("generateSummary thinking options", () => {
       message: "Summarization failed: model returned no summary text",
     });
   });
+
+  it("rejects a summarization response cut off at max_tokens (stopReason=length)", async () => {
+    const model: Model = {
+      id: "summary-model",
+      name: "Summary Model",
+      api: "test-api",
+      provider: "test-provider",
+      baseUrl: "https://example.test",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 100_000,
+      maxTokens: 8_000,
+    };
+    const truncatedMessage: AssistantMessage = {
+      role: "assistant",
+      content: [{ type: "text", text: "## Goal\nMigrate billing.\n\n## Notes\n- keep the legacy" }],
+      api: model.api,
+      provider: model.provider,
+      model: model.id,
+      usage: createUsage(1),
+      stopReason: "length",
+      timestamp: 1,
+    };
+    const streamFn = vi.fn<StreamFn>(() => {
+      const stream = createAssistantMessageEventStream();
+      stream.push({ type: "done", reason: "length", message: truncatedMessage });
+      stream.end();
+      return stream;
+    });
+
+    const result = await generateSummary(
+      [{ role: "user", content: "hello", timestamp: 1 }],
+      model,
+      1_000,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      streamFn,
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected truncated compaction output to fail");
+    }
+    expect(result.error).toMatchObject({
+      name: "CompactionError",
+      code: "summarization_failed",
+      message: "Summarization failed: summary truncated at max_tokens",
+    });
+  });
 });
 
 describe("split-turn compaction", () => {
