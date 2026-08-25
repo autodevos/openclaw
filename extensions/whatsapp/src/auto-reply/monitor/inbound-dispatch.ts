@@ -810,6 +810,9 @@ export function createWhatsAppReplyPlan(params: {
       const normalizedDeliveryPayload = payload as DeliverableWhatsAppOutboundPayload<ReplyPayload>;
       const reply = resolveSendableOutboundReplyParts(normalizedDeliveryPayload);
       if (!reply.hasMedia && !reply.text.trim()) {
+        if (shouldLogVerbose()) {
+          logVerbose("Skipping auto-reply dispatch: reply text is empty or whitespace-only");
+        }
         return whatsAppReplyDeliveryVisibility(false);
       }
       if (!reply.hasMedia) {
