@@ -267,6 +267,18 @@ export async function runTelegramDispatchTurn(turn: Turn) {
               turn.streamMode === "progress" ? turn.commentaryProgressEnabled : undefined,
             progressPreambleEnabled: turn.progressPreambleEnabled,
             commentaryPayloadsEnabled: turn.progressPreambleEnabled,
+            // Wire exactly one commentary owner: when the draft can render
+            // interleaved 💬 lines, the draft owns commentary (callback returns
+            // false → durable delivery suppressed). When verbose progress is
+            // active the draft yields early in handleItemEvent, so the durable
+            // lane takes over (callback returns true → durable delivery enabled).
+            // Without this callback the shared resolver defaults to durable=true
+            // and both paths project the same preamble, duplicating every line
+            // in the progress draft (see issue #128038).
+            shouldDeliverCommentaryPayloads:
+              turn.streamMode === "progress" && turn.commentaryProgressEnabled
+                ? () => turn.verboseProgressActive()
+                : undefined,
             reasoningPayloadsEnabled: turn.durableReasoningPayloadsEnabled,
             onToolStart: (payload) => handleToolStart(turn, payload),
             onItemEvent: (payload) => handleItemEvent(turn, payload),
