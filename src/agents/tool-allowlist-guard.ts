@@ -2,6 +2,7 @@
  * Explicit tool allowlist guard.
  *
  * Collects operator/user allowlist sources and explains when no callable tools remain.
+ * Emits per-entry warnings for allowlisted tool names that match no registered tool.
  */
 import { normalizeStringEntries } from "@openclaw/normalization-core/string-normalization";
 import { normalizeToolList, normalizeToolPolicyName } from "./tool-policy.js";
@@ -38,6 +39,12 @@ export function buildEmptyExplicitToolAllowlistError(params: {
   toolsEnabled: boolean;
   disableTools?: boolean;
   toolsAllowExplicitlyEmpty?: boolean;
+  /**
+   * Optional callback invoked for each allowlisted entry that does not match any
+   * registered tool. Named entry diagnostics are emitted before the caller decides
+   * whether to surface or swallow the empty-allowlist error itself.
+   */
+  warn?: (message: string) => void;
 }): Error | null {
   const toolsIntentionallyDisabled =
     params.disableTools === true || params.toolsAllowExplicitlyEmpty === true;
@@ -45,6 +52,26 @@ export function buildEmptyExplicitToolAllowlistError(params: {
     ? params.sources.filter((source) => source.enforceWhenToolsDisabled === true)
     : params.sources;
   const callableToolNames = normalizeToolList(params.callableToolNames);
+
+  // Emit per-entry diagnostics for allowlisted names that matched no registered tool.
+  if (params.warn && sources.length > 0) {
+    const callableSet = new Set(callableToolNames);
+    for (const source of sources) {
+      for (const entry of source.entries) {
+        const normalized = normalizeToolPolicyName(entry);
+        // Skip blanks and the wildcard "allow-all" entry — it cannot be unmatched.
+        if (!normalized || normalized === "*") {
+          continue;
+        }
+        if (!callableSet.has(normalized)) {
+          params.warn(
+            `tools: ${source.label} allowlist entry "${normalized}" does not match any registered tool`,
+          );
+        }
+      }
+    }
+  }
+
   if (sources.length === 0 || callableToolNames.length > 0) {
     return null;
   }
