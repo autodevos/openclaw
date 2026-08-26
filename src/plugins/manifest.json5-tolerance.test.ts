@@ -23,6 +23,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const manifest = {
       id: "demo",
+      name: "Demo Plugin",
+      version: "1.0.0",
       configSchema: { type: "object" },
     };
     fs.writeFileSync(
@@ -43,6 +45,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "doctor-owners",
+        name: "Doctor Owners Plugin",
+        version: "1.0.0",
         configSchema: { type: "object" },
         sessionRouteStateOwners: [
           {
@@ -82,6 +86,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "strict-json",
+        name: "Strict JSON Plugin",
+        version: "1.0.0",
         configSchema: { type: "object" },
       }),
       "utf-8",
@@ -99,6 +105,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "cached-json",
+        name: "Cached JSON Plugin",
+        version: "1.0.0",
         configSchema: { type: "object" },
       }),
       "utf-8",
@@ -117,6 +125,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const json5Content = `{
   "id": "hindsight",
+  "name": "Hindsight Plugin",
+  "version": "1.0.0",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -137,6 +147,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const json5Content = `{
   // Plugin identifier
   "id": "commented-plugin",
+  "name": "Commented Plugin",
+  "version": "1.0.0",
   "configSchema": { "type": "object" }
 }`;
     fs.writeFileSync(path.join(dir, "openclaw.plugin.json"), json5Content, "utf-8");
@@ -151,6 +163,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const json5Content = `{
   id: "unquoted-keys",
+  name: "Unquoted Keys Plugin",
+  version: "1.0.0",
   configSchema: { type: "object" }
 }`;
     fs.writeFileSync(path.join(dir, "openclaw.plugin.json"), json5Content, "utf-8");
@@ -213,6 +227,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "kind-normalization",
+        name: "Kind Normalization Plugin",
+        version: "1.0.0",
         kind: rawKind,
         configSchema: { type: "object" },
       }),
@@ -233,6 +249,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "duplicate-memory",
+        name: "Duplicate Memory Plugin",
+        version: "1.0.0",
         kind: ["memory", "memory"],
         configSchema: { type: "object" },
       }),
@@ -259,6 +277,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const json5Content = `{
   id: "provider-plugin",
+  name: "Provider Plugin",
+  version: "1.0.0",
   modelSupport: {
     modelPrefixes: ["gpt-", "", "claude-"],
     modelPatterns: ["^o[0-9].*", ""],
@@ -280,6 +300,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const json5Content = `{
   id: "catalog-plugin",
+  name: "Catalog Plugin",
+  version: "1.0.0",
   catalog: {
     featured: false,
     order: 0,
@@ -302,6 +324,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
       path.join(dir, "openclaw.plugin.json"),
       JSON.stringify({
         id: "mcp-app-plugin",
+        name: "MCP App Plugin",
+        version: "1.0.0",
         configSchema: { type: "object" },
         mcpServers: {
           app: {
@@ -333,6 +357,8 @@ describe("loadPluginManifest JSON5 tolerance", () => {
     const dir = makeTempDir();
     const json5Content = `{
   id: "openai",
+  name: "OpenAI Plugin",
+  version: "1.0.0",
   activation: {
     onStartup: false,
     onProviders: ["openai", "", "openai"],

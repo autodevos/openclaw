@@ -199,6 +199,22 @@ export function loadPluginManifest(
   if (!configSchema) {
     return cacheResult({ ok: false, error: "plugin manifest requires configSchema", manifestPath });
   }
+  const name = normalizeOptionalString(raw.name) ?? "";
+  if (!name) {
+    return cacheResult({
+      ok: false,
+      error: "plugin manifest requires a non-empty name",
+      manifestPath,
+    });
+  }
+  const version = normalizeOptionalString(raw.version) ?? "";
+  if (!version) {
+    return cacheResult({
+      ok: false,
+      error: "plugin manifest requires a non-empty version",
+      manifestPath,
+    });
+  }
 
   const requiresPlugins = normalizeTrimmedStringList(raw.requiresPlugins);
   const enabledByDefaultOnPlatforms = setupNormalizers.normalizeManifestDefaultPlatforms(
@@ -294,11 +310,11 @@ export function loadPluginManifest(
       dashboard: dashboardResult.dashboard,
       mcpServers: capabilityNormalizers.normalizeManifestMcpServers(raw.mcpServers),
       skills: normalizeTrimmedStringList(raw.skills),
-      name: normalizeOptionalString(raw.name),
+      name,
       description: normalizeOptionalString(raw.description),
       catalog: capabilityNormalizers.normalizeManifestCatalog(raw.catalog),
       icon: normalizeOptionalString(raw.icon),
-      version: normalizeOptionalString(raw.version),
+      version,
       uiHints: setupNormalizers.normalizeConfigUiHints(raw.uiHints),
       contracts: capabilityNormalizers.normalizeManifestContracts(raw.contracts),
       mediaUnderstandingProviderMetadata:
