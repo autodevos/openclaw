@@ -171,3 +171,7 @@ For issues that don't fit a specific repo, or if you're unsure, email **security
 8. **Remediation Advice**
 
 Reports without reproduction steps, demonstrated impact, and remediation advice will be deprioritized. Given the volume of AI-generated scanner findings, we must ensure we're receiving vetted reports from researchers who understand the issues.
+
+## Automated review
+
+Pull requests to this repository may be reviewed and merged by the automated `oss-reviewer` maintainer agent once CI is green. See the AutoDevOS OSS Contributor Swarm for details.
