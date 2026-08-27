@@ -1,6 +1,6 @@
 // Tool allowlist guard tests cover fail-closed behavior when explicit
 // allowlists leave no callable tools for the selected runtime/model.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildEmptyExplicitToolAllowlistError,
   collectExplicitToolAllowlistSources,
@@ -122,5 +122,57 @@ describe("tool allowlist guard", () => {
         enforceWhenToolsDisabled: true,
       },
     ]);
+  });
+
+  it("warns which specific allowlisted entry is unmatched when some tools remain callable", () => {
+    const warn = vi.fn();
+    const result = buildEmptyExplicitToolAllowlistError({
+      sources: [{ label: "tools.allow", entries: ["read", "missing_tool"] }],
+      callableToolNames: ["read"],
+      toolsEnabled: true,
+      warn,
+    });
+    expect(result).toBeNull();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing_tool"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("tools.allow"));
+  });
+
+  it("warns for each unmatched entry by name when no tools remain callable", () => {
+    const warn = vi.fn();
+    buildEmptyExplicitToolAllowlistError({
+      sources: [
+        { label: "tools.allow", entries: ["missing_a", "missing_b"] },
+        { label: "agents.db.tools.allow", entries: ["missing_c"] },
+      ],
+      callableToolNames: [],
+      toolsEnabled: true,
+      warn,
+    });
+    expect(warn).toHaveBeenCalledTimes(3);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing_a"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing_b"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("missing_c"));
+  });
+
+  it("does not warn for wildcard entries since they cannot be unmatched by name", () => {
+    const warn = vi.fn();
+    buildEmptyExplicitToolAllowlistError({
+      sources: [{ label: "tools.allow", entries: ["*", "read"] }],
+      callableToolNames: ["read"],
+      toolsEnabled: true,
+      warn,
+    });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("does not warn when warn callback is omitted", () => {
+    expect(() =>
+      buildEmptyExplicitToolAllowlistError({
+        sources: [{ label: "tools.allow", entries: ["missing_tool"] }],
+        callableToolNames: [],
+        toolsEnabled: true,
+      }),
+    ).not.toThrow();
   });
 });
