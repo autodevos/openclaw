@@ -258,6 +258,21 @@ describe("deliverWebReply", () => {
     await expectReplySuppressed({ text: " > Reasoning:\n> _hidden_" });
   });
 
+  it("does not dispatch an empty reply", async () => {
+    await expectReplySuppressed({ text: "" });
+  });
+
+  it("does not dispatch a whitespace-only reply", async () => {
+    await expectReplySuppressed({ text: "   " });
+  });
+
+  it("dispatches a non-blank reply normally", async () => {
+    const { msg, params } = createDelivery({ text: "hello" });
+    await deliverWebReply(params);
+    expect(msg.platform.reply).toHaveBeenCalledOnce();
+    expect(msg.platform.reply).toHaveBeenCalledWith("hello", undefined);
+  });
+
   it("does not suppress messages that mention Reasoning: mid-text", async () => {
     const { msg, params } = createDelivery({
       text: "Intro line\nReasoning: appears in content but is not a prefix",

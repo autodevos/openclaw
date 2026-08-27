@@ -211,6 +211,12 @@ async function deliverWebReplyInActivityScope(
   );
   const mediaList = normalizedReply.mediaUrls ?? [];
 
+  // Guard: skip dispatch when the resolved reply text is empty or whitespace-only and there is no media.
+  if (mediaList.length === 0 && (normalizedReply.text ?? "").trim() === "") {
+    whatsappOutboundLog.info(`Skipping empty/whitespace-only auto-reply to ${conversationId}`);
+    return finishDelivery();
+  }
+
   const getQuote = () => {
     if (!replyResult.replyToId) {
       return undefined;

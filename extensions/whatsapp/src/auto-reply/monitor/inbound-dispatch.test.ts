@@ -2153,5 +2153,32 @@ describe("whatsapp inbound dispatch", () => {
       }),
     ).toBe("+15550003333");
   });
+
+  it.each([
+    { name: "empty string", text: "" },
+    { name: "whitespace-only string", text: "   " },
+  ])("does not dispatch a $name reply payload", async ({ text }) => {
+    const deliverReply = vi.fn(async () => acceptedDeliveryResult());
+    await dispatchBufferedReply({ deliverReply });
+
+    const deliver = getCapturedDeliver();
+    expect(deliver).toBeTypeOf("function");
+
+    await expect(deliver?.({ text }, { kind: "final" })).resolves.toMatchObject({
+      visibleReplySent: false,
+    });
+    expect(deliverReply).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a reply with non-blank text normally", async () => {
+    const deliverReply = vi.fn(async () => acceptedDeliveryResult());
+    await dispatchBufferedReply({ deliverReply });
+
+    const deliver = getCapturedDeliver();
+    expect(deliver).toBeTypeOf("function");
+
+    await deliver?.({ text: "hello" }, { kind: "final" });
+    expect(deliverReply).toHaveBeenCalledTimes(1);
+  });
 });
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
