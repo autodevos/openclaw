@@ -648,6 +648,14 @@ async function runSummarizationCompletion(params: {
       ),
     );
   }
+  if (response.stopReason === "length") {
+    // A response cut off at max_tokens is not a usable summary — the tail
+    // (Next Steps, Critical Context) is exactly what the post-compaction agent needs.
+    // Treat as invalid output so the existing retry-invalid-once policy can apply.
+    return err(
+      new InvalidSummaryOutputError(`${params.errorLabel} failed: summary truncated at max_tokens`),
+    );
+  }
 
   const summary = extractSummaryText(response);
   if (summary === undefined) {
