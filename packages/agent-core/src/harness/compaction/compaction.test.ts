@@ -28,6 +28,46 @@ function createUsage(totalTokens: number): Usage {
   };
 }
 
+function createSummaryModel(reasoning: boolean): Model {
+  return {
+    id: "summary-model",
+    name: "Summary Model",
+    api: "test-api",
+    provider: "test-provider",
+    baseUrl: "https://example.test",
+    reasoning,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 100_000,
+    maxTokens: 8_000,
+  };
+}
+
+function createSingleDoneStreamFn(
+  model: Model,
+  content: AssistantMessage["content"],
+): ReturnType<typeof vi.fn<StreamFn>> {
+  return vi.fn<StreamFn>(() => {
+    const stream = createAssistantMessageEventStream();
+    stream.push({
+      type: "done",
+      reason: "stop",
+      message: {
+        role: "assistant",
+        content,
+        api: model.api,
+        provider: model.provider,
+        model: model.id,
+        usage: createUsage(1),
+        stopReason: "stop",
+        timestamp: 1,
+      },
+    });
+    stream.end();
+    return stream;
+  });
+}
+
 function createAssistant(text: string, usage: Usage, timestamp: number): AssistantMessage {
   return {
     role: "assistant",
@@ -917,37 +957,8 @@ describe("generateSummary thinking options", () => {
     ["whitespace-only", [{ type: "text" as const, text: " \n\t " }]],
     ["reasoning-only", [{ type: "thinking" as const, thinking: "internal summary reasoning" }]],
   ])("rejects %s compaction output", async (_name, content) => {
-    const model: Model = {
-      id: "summary-model",
-      name: "Summary Model",
-      api: "test-api",
-      provider: "test-provider",
-      baseUrl: "https://example.test",
-      reasoning: true,
-      input: ["text"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 100_000,
-      maxTokens: 8_000,
-    };
-    const streamFn = vi.fn<StreamFn>(() => {
-      const stream = createAssistantMessageEventStream();
-      stream.push({
-        type: "done",
-        reason: "stop",
-        message: {
-          role: "assistant",
-          content,
-          api: model.api,
-          provider: model.provider,
-          model: model.id,
-          usage: createUsage(1),
-          stopReason: "stop",
-          timestamp: 1,
-        },
-      });
-      stream.end();
-      return stream;
-    });
+    const model = createSummaryModel(true);
+    const streamFn = createSingleDoneStreamFn(model, content);
 
     const result = await generateSummary(
       [{ role: "user", content: "hello", timestamp: 1 }],
@@ -1024,6 +1035,45 @@ describe("generateSummary thinking options", () => {
       name: "CompactionError",
       code: "summarization_failed",
       message: "Summarization failed: summary truncated at max_tokens",
+    });
+  });
+});
+
+describe("compact rejects invalid summarization output", () => {
+  // Same invalid-response class as the max_tokens-truncation rejection:
+  // compact() must surface an error Result, not a CompactionResult, so
+  // callers never overwrite history with a blank/whitespace-only summary.
+  it("does not produce a compaction result for a whitespace-only summary", async () => {
+    const model = createSummaryModel(false);
+    const streamFn = createSingleDoneStreamFn(model, [{ type: "text", text: " \n\t " }]);
+
+    const result = await compact(
+      {
+        firstKeptEntryId: "kept-entry",
+        messagesToSummarize: [{ role: "user", content: "history", timestamp: 1 }],
+        turnPrefixMessages: [],
+        isSplitTurn: false,
+        tokensBefore: 100,
+        fileOps: createFileOps(),
+        settings: { enabled: true, reserveTokens: 1_000, keepRecentTokens: 100 },
+      },
+      model,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      streamFn,
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected whitespace-only compaction output to fail");
+    }
+    expect(result.error).toMatchObject({
+      name: "CompactionError",
+      code: "summarization_failed",
+      message: "Summarization failed: model returned no summary text",
     });
   });
 });
