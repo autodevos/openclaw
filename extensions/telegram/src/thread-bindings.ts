@@ -85,10 +85,16 @@ function getThreadBindingsState(): TelegramThreadBindingsState {
 }
 
 function normalizeDurationMs(raw: unknown, fallback: number): number {
-  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+  // Zero is a valid, documented sentinel meaning "disabled" (see
+  // config-ui-hints.ts: "Set 0 to disable idle auto-unfocus" / "...disable
+  // hard cap"), so it is passed through unchanged. A negative value is not a
+  // meaningful duration and previously collapsed to 0 here — silently
+  // disabling a timeout the caller never asked to disable instead of falling
+  // back to the documented default. Non-finite input already fell back.
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) {
     return fallback;
   }
-  return Math.max(0, Math.floor(raw));
+  return Math.floor(raw);
 }
 
 function resolveBindingKey(params: { accountId: string; conversationId: string }): string {

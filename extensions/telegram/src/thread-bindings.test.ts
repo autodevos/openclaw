@@ -352,6 +352,52 @@ describe("telegram thread bindings", () => {
     );
   });
 
+  it("falls back to the documented default idle/max-age instead of silently disabling them for negative or non-finite config", () => {
+    // Zero is a documented, intentional sentinel meaning "disabled" (see
+    // config-ui-hints.ts), so it must still be honored as-is. A negative or
+    // non-finite value is not a meaningful duration and must fall back to
+    // the documented default rather than collapsing to 0/disabled.
+    const negativeManager = createTelegramThreadBindingManager({
+      accountId: "negative-lifecycle",
+      persist: false,
+      enableSweeper: false,
+      idleTimeoutMs: -5,
+      maxAgeMs: -1,
+    });
+    expect(negativeManager.getIdleTimeoutMs()).toBe(24 * 60 * 60 * 1000);
+    expect(negativeManager.getMaxAgeMs()).toBe(0);
+
+    const nonFiniteManager = createTelegramThreadBindingManager({
+      accountId: "non-finite-lifecycle",
+      persist: false,
+      enableSweeper: false,
+      idleTimeoutMs: Number.NaN,
+      maxAgeMs: Number.POSITIVE_INFINITY,
+    });
+    expect(nonFiniteManager.getIdleTimeoutMs()).toBe(24 * 60 * 60 * 1000);
+    expect(nonFiniteManager.getMaxAgeMs()).toBe(0);
+
+    const disabledManager = createTelegramThreadBindingManager({
+      accountId: "disabled-lifecycle",
+      persist: false,
+      enableSweeper: false,
+      idleTimeoutMs: 0,
+      maxAgeMs: 0,
+    });
+    expect(disabledManager.getIdleTimeoutMs()).toBe(0);
+    expect(disabledManager.getMaxAgeMs()).toBe(0);
+
+    const positiveManager = createTelegramThreadBindingManager({
+      accountId: "positive-lifecycle",
+      persist: false,
+      enableSweeper: false,
+      idleTimeoutMs: 45 * 60_000,
+      maxAgeMs: 3 * 60 * 60_000,
+    });
+    expect(positiveManager.getIdleTimeoutMs()).toBe(45 * 60_000);
+    expect(positiveManager.getMaxAgeMs()).toBe(3 * 60 * 60_000);
+  });
+
   it("does not persist lifecycle updates when manager persistence is disabled", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-06T10:00:00.000Z"));
