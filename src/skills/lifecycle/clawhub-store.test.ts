@@ -22,7 +22,7 @@ describe("readClawHubSkillsLockfile", () => {
         "alice/deploy": {
           version: "1.2.0",
           registry: "clawhub" as const,
-          installedAt: "2026-01-01T00:00:00.000Z",
+          installedAt: 1767225600000,
         },
       };
       await writeClawHubSkillsLockfile(dir, { version: 1, skills });
@@ -41,7 +41,7 @@ describe("readClawHubSkillsLockfile", () => {
           "alice/deploy": {
             version: "1.0.0",
             registry: "clawhub" as const,
-            installedAt: "2026-01-01T00:00:00.000Z",
+            installedAt: 1767225600000,
           },
         },
       });
@@ -72,7 +72,7 @@ describe("readClawHubSkillsLockfile", () => {
           "bob/format": {
             version: "2.0.0",
             registry: "clawhub" as const,
-            installedAt: "2026-01-01T00:00:00.000Z",
+            installedAt: 1767225600000,
           },
         },
       });
