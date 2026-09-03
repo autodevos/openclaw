@@ -4,6 +4,7 @@ import type { ChannelAccountSnapshot } from "openclaw/plugin-sdk/channel-contrac
 import type { TelegramNetworkConfig } from "openclaw/plugin-sdk/config-contracts";
 import { drainPendingDeliveries } from "openclaw/plugin-sdk/delivery-queue-runtime";
 import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
+import { clampPositiveTimerTimeoutMs } from "openclaw/plugin-sdk/number-runtime";
 import { formatDurationPrecise, sleepWithAbort } from "openclaw/plugin-sdk/runtime-env";
 import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
@@ -38,10 +39,10 @@ import {
 const TELEGRAM_GET_UPDATES_CONFLICT_HINT =
   " Another OpenClaw gateway, script, or Telegram poller may be using this bot token; stop the duplicate poller or switch this account to webhook mode.";
 
-const DEFAULT_POLL_STALL_THRESHOLD_MS = 120_000;
-const MIN_POLL_STALL_THRESHOLD_MS = 30_000;
+export const DEFAULT_POLL_STALL_THRESHOLD_MS = 120_000;
+export const MIN_POLL_STALL_THRESHOLD_MS = 30_000;
 const TELEGRAM_DELIVERY_DRAIN_INTERVAL_MS = 5_000;
-const MAX_POLL_STALL_THRESHOLD_MS = 600_000;
+export const MAX_POLL_STALL_THRESHOLD_MS = 600_000;
 const POLL_WATCHDOG_INTERVAL_MS = 30_000;
 const POLL_STOP_GRACE_MS = 15_000;
 // Status-only backlog note threshold (unrelated to adoption timeout).
@@ -72,13 +73,14 @@ const waitForGracefulStop = async (stop: () => Promise<void>) => {
   }
 };
 
-const resolvePollingStallThresholdMs = (value: number | undefined): number => {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_POLL_STALL_THRESHOLD_MS;
-  }
+export const resolvePollingStallThresholdMs = (value: number | undefined): number => {
+  // A zero, negative, or non-finite configured threshold falls back to the
+  // documented default instead of silently collapsing to MIN_POLL_STALL_THRESHOLD_MS
+  // (which would otherwise make the watchdog far more aggressive than configured).
+  const positiveMs = clampPositiveTimerTimeoutMs(value) ?? DEFAULT_POLL_STALL_THRESHOLD_MS;
   return Math.min(
     MAX_POLL_STALL_THRESHOLD_MS,
-    Math.max(MIN_POLL_STALL_THRESHOLD_MS, Math.floor(value)),
+    Math.max(MIN_POLL_STALL_THRESHOLD_MS, Math.floor(positiveMs)),
   );
 };
 
