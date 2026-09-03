@@ -53,6 +53,7 @@ export function createTelegramTransportIngressMonitor(
   const adoptionStallTimeoutMs = resolveTelegramAdoptionStallTimeoutMs({
     configured: params.adoptionStallTimeoutMs,
     env: process.env,
+    log: params.onLog,
   });
   return createTelegramIngressMonitor({
     queue,
