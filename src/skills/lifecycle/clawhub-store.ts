@@ -169,6 +169,37 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isValidClawHubSkillLockEntry(raw: unknown): raw is ClawHubSkillLockEntry {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const candidate = raw as Partial<ClawHubSkillLockEntry>;
+  if (!isNonEmptyString(candidate.version)) {
+    return false;
+  }
+  if (candidate.registry !== undefined && !isNonEmptyString(candidate.registry)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Drops lock entries whose `version` is missing/empty/non-string, or whose
+ * `registry` (when present) is not a recognized non-empty string. Malformed
+ * entries are skipped rather than silently accepted and later used.
+ */
+function filterValidClawHubSkillLockEntries(
+  skills: Record<string, unknown>,
+): Record<string, ClawHubSkillLockEntry> {
+  const result: Record<string, ClawHubSkillLockEntry> = {};
+  for (const [slug, entry] of Object.entries(skills)) {
+    if (isValidClawHubSkillLockEntry(entry)) {
+      result[slug] = entry;
+    }
+  }
+  return result;
+}
+
 export function normalizeDownloadedArtifactLock(
   raw: unknown,
 ): ClawHubSkillDownloadedArtifactLock | undefined {
@@ -273,7 +304,10 @@ export async function readClawHubSkillsLockfile(
     try {
       const raw = await tryReadJson<Partial<ClawHubSkillsLockfile>>(candidate);
       if (raw?.version === 1 && raw.skills && typeof raw.skills === "object") {
-        return { version: 1, skills: raw.skills };
+        return {
+          version: 1,
+          skills: filterValidClawHubSkillLockEntries(raw.skills as Record<string, unknown>),
+        };
       }
     } catch {
       // ignore
@@ -315,7 +349,14 @@ export function readClawHubSkillsLockfileStatusSync(
       }
       const raw = read.value as Partial<ClawHubSkillsLockfile>;
       return raw?.version === 1 && raw.skills && typeof raw.skills === "object"
-        ? { kind: "found", path: candidate, lock: { version: 1, skills: raw.skills } }
+        ? {
+            kind: "found",
+            path: candidate,
+            lock: {
+              version: 1,
+              skills: filterValidClawHubSkillLockEntries(raw.skills as Record<string, unknown>),
+            },
+          }
         : {
             kind: "malformed",
             path: candidate,
