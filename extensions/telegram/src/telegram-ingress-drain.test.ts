@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { GrammyError } from "grammy";
 import { createChannelIngressQueueForTests } from "openclaw/plugin-sdk/channel-ingress-test-runtime";
+import { DEFAULT_INGRESS_ADOPTION_STALL_MS } from "openclaw/plugin-sdk/channel-outbound";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -11,7 +12,10 @@ import {
   type TelegramSpooledReplayDeferredParticipant,
 } from "./bot-processing-outcome.js";
 import { resolveTelegramForumFlag } from "./bot/helpers.js";
-import { createTelegramIngressMonitor } from "./telegram-ingress-drain.js";
+import {
+  createTelegramIngressMonitor,
+  resolveTelegramAdoptionStallTimeoutMs,
+} from "./telegram-ingress-drain.js";
 import { resolveTelegramIngressNonRetryableFailure } from "./telegram-ingress-non-retryable.js";
 import {
   TelegramIngressPayloadError,
@@ -509,5 +513,90 @@ describe("createTelegramIngressMonitor", () => {
       ).toBe(true);
       await monitor.stop();
     });
+  });
+});
+
+describe("resolveTelegramAdoptionStallTimeoutMs", () => {
+  it("falls back to the default and logs when the configured value is zero", () => {
+    const logs: string[] = [];
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      configured: 0,
+      env: {},
+      log: (message) => logs.push(message),
+    });
+    expect(timeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(logs.some((line) => line.includes("configured value (0)"))).toBe(true);
+  });
+
+  it("falls back to the default and logs when the configured value is negative", () => {
+    const logs: string[] = [];
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      configured: -5_000,
+      env: {},
+      log: (message) => logs.push(message),
+    });
+    expect(timeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(logs.some((line) => line.includes("configured value (-5000)"))).toBe(true);
+  });
+
+  it("falls back to the default and logs when the configured value is non-finite", () => {
+    const logs: string[] = [];
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      configured: Number.NaN,
+      env: {},
+      log: (message) => logs.push(message),
+    });
+    expect(timeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(logs.length).toBeGreaterThan(0);
+
+    const infiniteLogs: string[] = [];
+    const infiniteTimeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      configured: Number.POSITIVE_INFINITY,
+      env: {},
+      log: (message) => infiniteLogs.push(message),
+    });
+    expect(infiniteTimeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(infiniteLogs.length).toBeGreaterThan(0);
+  });
+
+  it("honors a positive configured value as-is, without logging a coercion", () => {
+    const logs: string[] = [];
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      configured: 45_000,
+      env: {},
+      log: (message) => logs.push(message),
+    });
+    expect(timeoutMs).toBe(45_000);
+    expect(logs.length).toBe(0);
+  });
+
+  it("does not disable the staleness check via the env override when it is zero/negative", () => {
+    const zeroLogs: string[] = [];
+    const zeroTimeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      env: { OPENCLAW_TELEGRAM_SPOOLED_HANDLER_TIMEOUT_MS: "0" },
+      log: (message) => zeroLogs.push(message),
+    });
+    expect(zeroTimeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(zeroLogs.length).toBeGreaterThan(0);
+
+    const negativeLogs: string[] = [];
+    const negativeTimeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      env: { OPENCLAW_TELEGRAM_SPOOLED_HANDLER_TIMEOUT_MS: "-1000" },
+      log: (message) => negativeLogs.push(message),
+    });
+    expect(negativeTimeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
+    expect(negativeLogs.length).toBeGreaterThan(0);
+  });
+
+  it("honors a positive env override when no configured value is present", () => {
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({
+      env: { OPENCLAW_TELEGRAM_SPOOLED_HANDLER_TIMEOUT_MS: "20000" },
+    });
+    expect(timeoutMs).toBe(20_000);
+  });
+
+  it("falls back to the default when neither configured nor env is present", () => {
+    const timeoutMs = resolveTelegramAdoptionStallTimeoutMs({ env: {} });
+    expect(timeoutMs).toBe(DEFAULT_INGRESS_ADOPTION_STALL_MS);
   });
 });

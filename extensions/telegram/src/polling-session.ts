@@ -145,6 +145,7 @@ export class TelegramPollingSession {
         ? { configured: opts.isolatedIngress.spooledUpdateHandlerTimeoutMs }
         : {}),
       env: process.env,
+      log: opts.log,
     });
   }
 
