@@ -50,16 +50,35 @@ const TELEGRAM_SPOOLED_DRAIN_POLL_INTERVAL_MS = 500;
 export function resolveTelegramAdoptionStallTimeoutMs(params: {
   configured?: number;
   env?: NodeJS.ProcessEnv;
+  /** Optional sink for a visible note when a configured value is coerced to the default. */
+  log?: (message: string) => void;
 }): number {
-  const candidates = [
-    params.configured,
-    Number(params.env?.[TELEGRAM_SPOOLED_HANDLER_TIMEOUT_ENV]),
-  ];
-  for (const candidate of candidates) {
-    const timeoutMs = clampPositiveTimerTimeoutMs(candidate);
+  // A zero, negative, or non-finite value must never be applied literally: it
+  // would either disable the adoption-stall staleness check (treating every
+  // inbound update as instantly "stalled") or silently invert it. Treat such
+  // values as unset and fall back to the documented default instead.
+  if (params.configured !== undefined) {
+    const timeoutMs = clampPositiveTimerTimeoutMs(params.configured);
     if (timeoutMs !== undefined) {
       return timeoutMs;
     }
+    params.log?.(
+      `[telegram] ingress adoption stall timeout: configured value (${params.configured}) is zero, ` +
+        `negative, or non-finite; treating it as unset and falling back to the default ` +
+        `(${DEFAULT_INGRESS_ADOPTION_STALL_MS}ms).`,
+    );
+  }
+  const envRaw = params.env?.[TELEGRAM_SPOOLED_HANDLER_TIMEOUT_ENV];
+  if (envRaw !== undefined && envRaw !== "") {
+    const envTimeoutMs = clampPositiveTimerTimeoutMs(Number(envRaw));
+    if (envTimeoutMs !== undefined) {
+      return envTimeoutMs;
+    }
+    params.log?.(
+      `[telegram] ingress adoption stall timeout: ${TELEGRAM_SPOOLED_HANDLER_TIMEOUT_ENV}=${envRaw} is ` +
+        `zero, negative, or non-finite; treating it as unset and falling back to the default ` +
+        `(${DEFAULT_INGRESS_ADOPTION_STALL_MS}ms).`,
+    );
   }
   return DEFAULT_INGRESS_ADOPTION_STALL_MS;
 }
