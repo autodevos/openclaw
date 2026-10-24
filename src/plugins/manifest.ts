@@ -213,6 +213,15 @@ export function loadPluginManifest(
   if (!configSchema) {
     return fail("plugin manifest requires configSchema");
   }
+  for (const field of ["name", "version"] as const) {
+    if (field in raw && !normalizeOptionalString(raw[field])) {
+      return cacheResult({
+        ok: false,
+        error: `plugin manifest ${field} must be a non-empty string when present: ${manifestPath}`,
+        manifestPath,
+      });
+    }
+  }
   const backupResources = parseManifestBackupResources(raw.backupResources);
   if (!backupResources.ok) {
     return cacheResult({
