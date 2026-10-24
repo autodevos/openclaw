@@ -1078,6 +1078,9 @@ const config = {
     // Mirror config parsing, redaction mapping, cap fitting, and the runner are
     // asserted by the focused Beam mirror tests; production wires only the service.
     "extensions/beam/src/mirror.ts": ["exports", "types"],
+    // Focused stall-threshold tests import the resolver and its bounds directly;
+    // production code only calls the resolver in-module.
+    "extensions/telegram/src/polling-session.ts": ["exports"],
     "src/infra/heartbeat-wake.ts": ["exports"],
     // Lazy loaders import these modules opaquely (media-understanding runner, config model
     // validation), which Knip counts as using every export until a bare namespace reference
